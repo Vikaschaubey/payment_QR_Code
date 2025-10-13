@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Creative Rainbow QR Generator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="panel controls">
+      <h1>Creative Rainbow QR</h1>
+      <p>Enter a URL and click <strong>Generate</strong> to create a rainbow QR code.</p>
+
+      <label for="url">URL</label>
+      <input id="url" type="url" placeholder="https://example.com" value="https://example.com" />
+
+      <div style="height:12px"></div>
+
+      <label for="size">Size (px)</label>
+      <select id="size">
+        <option value="300">300 × 300</option>
+        <option value="400" selected>400 × 400</option>
+        <option value="600">600 × 600</option>
+      </select>
+
+      <div class="options">
+        <button id="generate" class="btn">Generate QR</button>
+        <button id="download" class="btn blue">Download PNG</button>
+        <button id="reset" class="btn red">Reset</button>
+      </div>
+
+      <div style="height:14px"></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="link-copy" id="copy-url">Copy URL</div>
+        <div style="flex:1"></div>
+        <div style="font-size:12px;color:#6b7280">Powered by <strong>QRServer</strong></div>
+      </div>
+
+      <div class="footer-note">Rainbow-colored creative QR with download support.</div>
+    </div>
+
+    <div class="panel preview-wrap">
+      <strong style="font-size:15px">Preview</strong>
+      <div class="card">
+        <canvas id="qr-canvas" width="720" height="720"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
