@@ -1,128 +1,98 @@
-const urlInput = document.getElementById('url');
-const sizeSelect = document.getElementById('size');
-const generateBtn = document.getElementById('generate');
-const downloadBtn = document.getElementById('download');
-const resetBtn = document.getElementById('reset');
-const copyBtn = document.getElementById('copy-url');
-const canvas = document.getElementById('qr-canvas');
-const ctx = canvas.getContext('2d');
+// script.js
+const upiIdEl = document.getElementById('upiId');
+const upiNameEl = document.getElementById('upiName');
+const upiNoteEl = document.getElementById('upiNote');
+const upiAmountEl = document.getElementById('upiAmount');
+const generateBtn = document.getElementById('generateBtn');
+const copyBtn = document.getElementById('copyPayload');
+const qrPlaceholder = document.getElementById('qrPlaceholder');
 
-// Copy URL button
-copyBtn.addEventListener('click', async () => {
-  try {
-    await navigator.clipboard.writeText(urlInput.value);
-    copyBtn.textContent = 'Copied!';
-    setTimeout(() => copyBtn.textContent = 'Copy URL', 1200);
-  } catch {
-    copyBtn.textContent = 'Failed';
-    setTimeout(() => copyBtn.textContent = 'Copy URL', 1200);
-  }
-});
+const offCanvas = document.getElementById('qrCanvas2d');
+const offCtx = offCanvas.getContext('2d');
+const qr = new QRious({ element: offCanvas, size: 512, value: '', level: 'H' });
 
-// Reset button
-resetBtn.addEventListener('click', () => {
-  urlInput.value = 'https://example.com';
-  sizeSelect.value = '400';
-  drawBlank();
-});
+// QR display on webpage
+const qrDisplay = document.createElement('img');
+qrDisplay.style.width = '250px';
+qrDisplay.style.height = '250px';
+qrDisplay.style.marginTop = '12px';
+qrDisplay.style.display = 'none';
+document.querySelector('.sceneWrap').prepend(qrDisplay);
 
-generateBtn.addEventListener('click', generateAndDraw);
-downloadBtn.addEventListener('click', downloadImage);
-
-drawBlank();
-
-function drawBlank() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.font = '600 20px Inter, system-ui';
-  ctx.fillStyle = '#3b4a66';
-  ctx.textAlign = 'center';
-  ctx.fillText('QR will appear here', canvas.width / 2, canvas.height / 2 - 6);
+function buildUpiUri(vpa, name, amount, note) {
+  const params = new URLSearchParams();
+  params.set('pa', vpa);
+  if(name) params.set('pn', name);
+  if(amount) params.set('am', Number(amount).toFixed(2));
+  if(note) params.set('tn', note);
+  params.set('cu','INR');
+  return 'upi://pay?' + params.toString();
 }
 
-async function generateAndDraw() {
-  const text = urlInput.value.trim();
-  if (!text) { alert('Please enter a URL.'); return; }
+function hslToRgb(h,s,l){
+  let r,g,b;
+  if(s===0) r=g=b=l; else{
+    const hue2rgb=(p,q,t)=>{ if(t<0) t+=1; if(t>1) t-=1; if(t<1/6) return p+(q-p)*6*t; if(t<1/2) return q; if(t<2/3) return p+(q-p)*(2/3-t)*6; return p };
+    const q = l<0.5? l*(1+s) : l + s - l*s;
+    const p = 2*l - q;
+    r = hue2rgb(p,q,h+1/3); g = hue2rgb(p,q,h); b = hue2rgb(p,q,h-1/3);
+  }
+  return [r*255,g*255,b*255];
+}
 
-  const size = parseInt(sizeSelect.value, 10);
-  const apiURL = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(text)}&qzone=1`;
-
-  const img = new Image();
-  img.crossOrigin = 'anonymous';
-  img.src = apiURL;
-
-  generateBtn.textContent = 'Generating...';
-  generateBtn.disabled = true;
-
-  img.onload = () => {
-    generateBtn.textContent = 'Generate QR';
-    generateBtn.disabled = false;
-
-    const target = 720;
-    canvas.width = target;
-    canvas.height = target;
-    ctx.clearRect(0, 0, target, target);
-
-    // Draw white background
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, target, target);
-
-    // Draw QR code
-    const padding = Math.round(target * 0.08);
-    const inner = target - padding * 2;
-    ctx.drawImage(img, padding, padding, inner, inner);
-
-    // Apply rainbow gradient
-    const imageData = ctx.getImageData(padding, padding, inner, inner);
-    const data = imageData.data;
-    for (let y = 0; y < inner; y++) {
-      const hue = (y / inner) * 360;
-      const [r, g, b] = hslToRgb(hue / 360, 1, 0.5);
-      for (let x = 0; x < inner; x++) {
-        const i = (y * inner + x) * 4;
-        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-        if (avg < 128) {
-          data[i] = r;
-          data[i + 1] = g;
-          data[i + 2] = b;
-        }
-      }
+function applyRainbowToCanvas(){
+  const w = offCanvas.width, h = offCanvas.height;
+  const img = offCtx.getImageData(0,0,w,h);
+  const data = img.data;
+  for(let y=0;y<h;y++){
+    const hue = (y/h)*360;
+    const [r,g,b] = hslToRgb(hue/360,1,0.5);
+    for(let x=0;x<w;x++){
+      const idx = (y*w+x)*4;
+      const brightness = data[idx];
+      const t = 1-(brightness/255);
+      data[idx] = Math.round(255*(1-t) + r*t);
+      data[idx+1] = Math.round(255*(1-t) + g*t);
+      data[idx+2] = Math.round(255*(1-t) + b*t);
     }
-    ctx.putImageData(imageData, padding, padding);
-  };
-
-  img.onerror = () => {
-    alert('Failed to load QR code.');
-    generateBtn.textContent = 'Generate QR';
-    generateBtn.disabled = false;
-  };
-}
-
-// Convert HSL to RGB
-function hslToRgb(h, s, l) {
-  let r, g, b;
-  if (s === 0) r = g = b = l;
-  else {
-    const hue2rgb = (p, q, t) => {
-      if (t < 0) t += 1;
-      if (t > 1) t -= 1;
-      if (t < 1 / 6) return p + (q - p) * 6 * t;
-      if (t < 1 / 2) return q;
-      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
-      return p;
-    };
-    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-    const p = 2 * l - q;
-    r = hue2rgb(p, q, h + 1 / 3);
-    g = hue2rgb(p, q, h);
-    b = hue2rgb(p, q, h - 1 / 3);
   }
-  return [r * 255, g * 255, b * 255];
+  offCtx.putImageData(img,0,0);
 }
 
-// Download QR
-function downloadImage() {
-  const link = document.createElement('a');
-  link.download = 'rainbow-qr.png';
-  link.href = canvas.toDataURL('image/png');
-  link.click();
+function generateAndDownload(){
+  const vpa = upiIdEl.value.trim();
+  if(!vpa){ alert('Please enter a valid UPI ID'); return; }
+  const payload = buildUpiUri(vpa, upiNameEl.value.trim(), upiAmountEl.value, upiNoteEl.value.trim());
+  qr.value = payload;
+
+  setTimeout(()=>{
+    applyRainbowToCanvas();
+    qrPlaceholder.style.display = 'none';
+    qrDisplay.src = offCanvas.toDataURL('image/png');
+    qrDisplay.style.display = 'block';
+
+    offCanvas.toBlob((blob)=>{
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'upi-qr.png';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    },'image/png');
+  },50);
+
+  offCanvas.dataset.payload = payload;
 }
+
+generateBtn.addEventListener('click', generateAndDownload);
+
+copyBtn.addEventListener('click',async ()=>{
+  const payload = offCanvas.dataset.payload||qr.value||'';
+  if(!payload){ alert('Generate a QR first'); return; }
+  try{ await navigator.clipboard.writeText(payload); alert('UPI link copied!'); }
+  catch{ alert('Copy failed. Here is the link:\n'+payload); }
+});
+
+document.querySelectorAll('input').forEach(inp=>{inp.addEventListener('keydown',e=>{ if(e.key==='Enter') generateAndDownload(); });});
